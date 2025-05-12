@@ -157,7 +157,8 @@ Authorization: Bearer {JWT_TOKEN}
   "profitLossRate": "0.00",             // 누적 손익률 (%) (lspft_rt)
   "stocks": [                           // 종목별 계좌평가 현황
     {
-      "name": "메리츠금융지주",          // 종목명 (stk_nm)
+      "stk_cd": "A138040",               // 종목코드 (stk_cd)
+      "name": "메리츠금융지주",           // 종목명 (stk_nm)
       "quantity": "000000000900",        // 보유수량 (rmnd_qty)
       "avgPrice": "000000118234",        // 평균단가 (avg_prc)
       "currentPrice": "000000119600",    // 현재가 (cur_prc)
