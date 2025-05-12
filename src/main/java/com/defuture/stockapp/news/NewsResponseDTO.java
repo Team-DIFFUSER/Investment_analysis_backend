@@ -2,8 +2,6 @@ package com.defuture.stockapp.news;
 
 import java.util.List;
 
-import com.defuture.stockapp.assets.StockItemDTO;
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
