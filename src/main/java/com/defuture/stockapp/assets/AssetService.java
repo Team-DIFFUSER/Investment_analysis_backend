@@ -6,16 +6,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.core.ParameterizedTypeReference;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class AssetService {
 	private static final DateTimeFormatter DF = DateTimeFormatter.ofPattern("yyyyMMdd");
+	private static final Duration STALE_THRESHOLD = Duration.ofHours(1);
 
 	@Value("${kiwoom.appkey}")
 	private String appKey;
@@ -23,6 +28,7 @@ public class AssetService {
 	@Value("${kiwoom.secretkey}")
 	private String secretKey;
 
+	private final AccountEvaluationRepository repo;
 	private final RestTemplate restTemplate;
 	private String accessToken;
 
@@ -38,8 +44,9 @@ public class AssetService {
 	@Value("${securities.api.chart-endpoint}")
 	private String chartEndpoint;
 
-	public AssetService(RestTemplate restTemplate) {
+	public AssetService(RestTemplate restTemplate, AccountEvaluationRepository repo) {
 		this.restTemplate = restTemplate;
+		this.repo= repo;
 	}
 
 	public String getAccessToken() {
@@ -63,8 +70,32 @@ public class AssetService {
 		this.accessToken = (String) body.get("token");
 		return this.accessToken;
 	}
+	
+	public AccountEvaluationResponseDTO getAccountEvaluation(String token, String username) {
+        Optional<AccountEvaluation> act = repo.findByUsername(username);
 
-	public AccountEvaluationResponseDTO getAccountEvaluation(String token) {
+        if (act.isEmpty() || isStale(act.get().getLastUpdated())) {
+            act.ifPresent(e -> repo.deleteByUsername(e.getUsername()));
+
+            AccountEvaluationResponseDTO freshDto = fetchFreshAccountEvaluation(token);
+
+            AccountEvaluation entity = mapDtoToEntity(username, freshDto);
+            entity.setLastUpdated(Instant.now());
+
+            repo.save(entity);
+
+            return freshDto;
+        }
+
+        return mapEntityToDto(act.get());
+    }
+	
+	private boolean isStale(Instant lastUpdated) {
+        return lastUpdated.plus(STALE_THRESHOLD)
+                          .isBefore(Instant.now());
+    }
+
+	public AccountEvaluationResponseDTO fetchFreshAccountEvaluation(String token) {
 		String url = baseUrl + accountEndpoint; // API URL 설정
 
 		// 요청 헤더 설정
@@ -148,4 +179,59 @@ public class AssetService {
 		return combined;
 
 	}
+	
+	private AccountEvaluation mapDtoToEntity(String username, AccountEvaluationResponseDTO dto) {
+		AccountEvaluation act = new AccountEvaluation();
+		act.setUsername(username);
+		act.setD2EntBalance(dto.getD2EntBalance());
+		act.setTotalEstimate(dto.getTotalEstimate());
+		act.setTotalPurchase(dto.getTotalPurchase());
+		act.setProfitLoss(dto.getProfitLoss());
+		act.setProfitLossRate(dto.getProfitLossRate());
+
+        List<AccountEvaluation.EvltData> list = dto.getEvltData().stream()
+            .map(d -> {
+            	AccountEvaluation.EvltData ed = new AccountEvaluation.EvltData();
+                ed.setStockCode(d.getStockCode());
+                ed.setName(d.getName());
+                ed.setQuantity(d.getQuantity());
+                ed.setAvgPrice(d.getAvgPrice());
+                ed.setCurrentPrice(d.getCurrentPrice());
+                ed.setEvalAmount(d.getEvalAmount());
+                ed.setPlAmount(d.getPlAmount());
+                ed.setPlRate(d.getPlRate());
+                return ed;
+            })
+            .collect(Collectors.toList());
+
+        act.setEvltData(list);
+        return act;
+    }
+	
+	private AccountEvaluationResponseDTO mapEntityToDto(AccountEvaluation act) {
+        AccountEvaluationResponseDTO dto = new AccountEvaluationResponseDTO();
+        dto.setD2EntBalance(act.getD2EntBalance());
+        dto.setTotalEstimate(act.getTotalEstimate());
+        dto.setTotalPurchase(act.getTotalPurchase());
+        dto.setProfitLoss(act.getProfitLoss());
+        dto.setProfitLossRate(act.getProfitLossRate());
+
+        List<AccountEvaluationResponseDTO.EvltData> list = act.getEvltData().stream()
+            .map(ed -> {
+                AccountEvaluationResponseDTO.EvltData d = new AccountEvaluationResponseDTO.EvltData();
+                d.setStockCode(ed.getStockCode());
+                d.setName(ed.getName());
+                d.setQuantity(ed.getQuantity());
+                d.setAvgPrice(ed.getAvgPrice());
+                d.setCurrentPrice(ed.getCurrentPrice());
+                d.setEvalAmount(ed.getEvalAmount());
+                d.setPlAmount(ed.getPlAmount());
+                d.setPlRate(ed.getPlRate());
+                return d;
+            })
+            .collect(Collectors.toList());
+
+        dto.setEvltData(list);
+        return dto;
+    }
 }

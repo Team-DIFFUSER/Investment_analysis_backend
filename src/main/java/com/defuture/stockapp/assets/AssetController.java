@@ -1,6 +1,7 @@
 package com.defuture.stockapp.assets;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -14,9 +15,9 @@ public class AssetController {
 	}
 
 	@GetMapping("")
-	public ResponseEntity<?> getAccountEvaluation() { // @RequestHeader("Authorization") String token
+	public ResponseEntity<?> getAccountEvaluation(Authentication auth) { // @RequestHeader("Authorization") String token
 		String accessToken = assetService.getAccessToken();
-		AccountEvaluationResponseDTO response = assetService.getAccountEvaluation(accessToken);
+		AccountEvaluationResponseDTO response = assetService.getAccountEvaluation(accessToken, auth.getName());
 		return ResponseEntity.ok(response);
 	}
 	
