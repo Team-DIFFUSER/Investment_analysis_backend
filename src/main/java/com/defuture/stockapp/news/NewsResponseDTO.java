@@ -2,15 +2,22 @@ package com.defuture.stockapp.news;
 
 import java.util.List;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
-@Getter
-@Setter
-@AllArgsConstructor
+@Data
 public class NewsResponseDTO {
-	private String lastBuildDate;
+    private String lastBuildDate;
+	
 	private int total;
-	private List<NewsItemDTO> items;
+	
+	private List<newsData> items;
+	
+	@Data
+    public static class newsData {
+		private String title;
+		
+		private String link;
+		
+		private String description;
+	}
 }

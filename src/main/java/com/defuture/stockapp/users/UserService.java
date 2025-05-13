@@ -4,7 +4,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.util.List;
 import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
@@ -39,7 +38,7 @@ public class UserService {
 		return userRepository.existsByEmail(email);
 	}
 
-	public UserAccount createInvestmentProfile(String username, List<InvestmentResponseDTO> responses) {
+	public UserAccount createInvestmentProfile(String username, InvestmentResponseDTO responses) {
 		UserAccount user = userRepository.findByUsername(username)
 				.orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
@@ -55,9 +54,9 @@ public class UserService {
 		return user;
 	}
 
-	private double calculateTotalScore(List<InvestmentResponseDTO> responses) {
+	private double calculateTotalScore(InvestmentResponseDTO responses) {
 		double score = 0;
-		for (InvestmentResponseDTO response : responses) {
+		for (InvestmentResponseDTO.ResponseData response : responses.getResponses()) {
 			int questionId = response.getQuestionId();
 			for (int option : response.getSelectedOption()) {
 				score += getScore(questionId, option);

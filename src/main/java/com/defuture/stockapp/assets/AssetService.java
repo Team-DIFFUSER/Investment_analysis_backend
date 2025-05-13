@@ -4,8 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.core.ParameterizedTypeReference;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -16,7 +15,6 @@ import java.util.Map;
 
 @Service
 public class AssetService {
-	private final ObjectMapper objectMapper;
 	private static final DateTimeFormatter DF = DateTimeFormatter.ofPattern("yyyyMMdd");
 
 	@Value("${kiwoom.appkey}")
@@ -42,7 +40,6 @@ public class AssetService {
 
 	public AssetService(RestTemplate restTemplate) {
 		this.restTemplate = restTemplate;
-		this.objectMapper = new ObjectMapper();
 	}
 
 	public String getAccessToken() {
@@ -57,8 +54,10 @@ public class AssetService {
 		requestBody.put("grant_type", "client_credentials");
 		requestBody.put("appkey", appKey); // kiwoom rest api appkey
 		requestBody.put("secretkey", secretKey); // kiwoom rest api secretkey
+		
+		HttpEntity<Map<String, String>> request = new HttpEntity<>(requestBody, headers);
 
-		ResponseEntity<Map> response = restTemplate.postForEntity(url, requestBody, Map.class);
+		ResponseEntity<Map<String, Object>> response = restTemplate.exchange(url, HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {});
 		Map<String, Object> body = response.getBody();
 
 		this.accessToken = (String) body.get("token");

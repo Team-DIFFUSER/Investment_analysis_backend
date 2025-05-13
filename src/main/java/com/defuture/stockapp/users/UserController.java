@@ -2,8 +2,6 @@ package com.defuture.stockapp.users;
 
 import jakarta.validation.Valid;
 
-import java.util.List;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -35,13 +33,13 @@ public class UserController {
 	}
 
 	@GetMapping("/exists/{username}")
-	public ResponseEntity<Boolean> checkUserExists(@PathVariable("username") String username) {
+	public ResponseEntity<Boolean> checkUserExists(@PathVariable String username) {
 		boolean exists = userService.userExists(username);
 		return ResponseEntity.ok(exists);
 	}
 
 	@GetMapping("/{username}")
-	public ResponseEntity<?> getUser(@PathVariable("username") String username) {
+	public ResponseEntity<?> getUser(@PathVariable String username) {
 		UserAccount user = userService.findByUsername(username);
 		if (user == null) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("존재하지 않는 ID입니다.");
@@ -50,13 +48,12 @@ public class UserController {
 	}
 
 	@PostMapping("/profile")
-	public ResponseEntity<InvestmentProfileResponseDTO> createInvestmentProfile(@RequestBody InvestmentRequestDTO dto) {
+	public ResponseEntity<InvestmentProfileResponseDTO> createInvestmentProfile(@RequestBody InvestmentResponseDTO dto) {
 		UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
 		String username = userDetails.getUsername();
-		List<InvestmentResponseDTO> responses = dto.getResponses();
 
-		UserAccount user = userService.createInvestmentProfile(username, responses);
+		UserAccount user = userService.createInvestmentProfile(username, dto);
 		InvestmentProfileResponseDTO responseDTO = new InvestmentProfileResponseDTO();
 	    responseDTO.setUsername(user.getUsername());
 	    responseDTO.setTotalScore(user.getInvestmentScore());

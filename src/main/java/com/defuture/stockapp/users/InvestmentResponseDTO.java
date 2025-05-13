@@ -8,8 +8,13 @@ import lombok.Data;
 
 @Data
 public class InvestmentResponseDTO {
-	private Integer questionId;
+	private List<ResponseData> responses;
 	
-	@JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)	//3번질문 중복 체크 허용
-	private List<Integer> selectedOption;
+	@Data
+    public static class ResponseData {
+		private Integer questionId;
+		
+		@JsonFormat(with = JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)	//3번질문 중복 체크 허용
+		private List<Integer> selectedOption;
+	}
 }

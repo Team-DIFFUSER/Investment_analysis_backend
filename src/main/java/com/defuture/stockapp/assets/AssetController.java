@@ -17,7 +17,6 @@ public class AssetController {
 	public ResponseEntity<?> getAccountEvaluation() { // @RequestHeader("Authorization") String token
 		String accessToken = assetService.getAccessToken();
 		AccountEvaluationResponseDTO response = assetService.getAccountEvaluation(accessToken);
-		System.out.println("assets");
 		return ResponseEntity.ok(response);
 	}
 	
