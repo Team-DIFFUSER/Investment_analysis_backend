@@ -28,4 +28,12 @@ public class AssetController {
 
 		return ResponseEntity.ok(response);
 	}
+
+	@GetMapping("/{stkCd}/financials")
+	public ResponseEntity<FinancialStatementDTO> getFinancialStatement(@PathVariable("stkCd") String stockCode) { // @RequestHeader("Authorization") String token
+		String accessToken = assetService.getAccessToken();
+		FinancialStatementDTO response = assetService.getFinancialStatement(accessToken, stockCode);
+
+		return ResponseEntity.ok(response);
+	}
 }

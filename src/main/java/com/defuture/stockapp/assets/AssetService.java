@@ -44,6 +44,9 @@ public class AssetService {
 
 	@Value("${securities.api.chart-endpoint}")
 	private String chartEndpoint;
+	
+	@Value("${securities.api.stkInfo-endpoint}")
+	private String stkInfoEndpoint;
 
 	public AssetService(RestTemplate restTemplate, AccountEvaluationRepository actRepo, StockChartRepository stkRepo) {
 		this.restTemplate = restTemplate;
@@ -220,6 +223,28 @@ public class AssetService {
         }).collect(Collectors.toList()));
 
         return result;
+	}
+	
+	public FinancialStatementDTO getFinancialStatement(String token, String stockCode) {
+		String url = baseUrl + stkInfoEndpoint;
+		
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		headers.setBearerAuth(token); // "Authorization: Bearer {token}"
+		headers.add("cont-yn", "N"); // 연속조회 여부
+		headers.add("next-key", ""); // 연속조회 키
+		headers.add("api-id", "ka10001"); // TR명
+		
+		Map<String, String> requestBody = new HashMap<>();
+		requestBody.put("stk_cd", stockCode);
+		
+		HttpEntity<Map<String, String>> request = new HttpEntity<>(requestBody, headers);
+		
+		ResponseEntity<FinancialStatementDTO> response = restTemplate.exchange(url, HttpMethod.POST, request, FinancialStatementDTO.class);
+		
+		FinancialStatementDTO json = response.getBody();
+		
+		return json;
 	}
 	
 	private AccountEvaluation mapDtoToEntity(String username, AccountEvaluationResponseDTO dto) {
