@@ -28,7 +28,8 @@ public class AssetService {
 	@Value("${kiwoom.secretkey}")
 	private String secretKey;
 
-	private final AccountEvaluationRepository repo;
+	private final AccountEvaluationRepository actRepo;
+	private final StockChartRepository stkRepo;
 	private final RestTemplate restTemplate;
 	private String accessToken;
 
@@ -44,9 +45,10 @@ public class AssetService {
 	@Value("${securities.api.chart-endpoint}")
 	private String chartEndpoint;
 
-	public AssetService(RestTemplate restTemplate, AccountEvaluationRepository repo) {
+	public AssetService(RestTemplate restTemplate, AccountEvaluationRepository actRepo, StockChartRepository stkRepo) {
 		this.restTemplate = restTemplate;
-		this.repo= repo;
+		this.actRepo= actRepo;
+		this.stkRepo= stkRepo;
 	}
 
 	public String getAccessToken() {
@@ -72,17 +74,17 @@ public class AssetService {
 	}
 	
 	public AccountEvaluationResponseDTO getAccountEvaluation(String token, String username) {
-        Optional<AccountEvaluation> act = repo.findByUsername(username);
+        Optional<AccountEvaluation> act = actRepo.findByUsername(username);
 
         if (act.isEmpty() || isStale(act.get().getLastUpdated())) {
-            act.ifPresent(e -> repo.deleteByUsername(e.getUsername()));
+            act.ifPresent(e -> actRepo.deleteByUsername(e.getUsername()));
 
             AccountEvaluationResponseDTO freshDto = fetchFreshAccountEvaluation(token);
 
             AccountEvaluation entity = mapDtoToEntity(username, freshDto);
             entity.setLastUpdated(Instant.now());
 
-            repo.save(entity);
+            actRepo.save(entity);
 
             return freshDto;
         }
@@ -122,62 +124,102 @@ public class AssetService {
 		return json;
 	}
 
-	public ChartResponseDTO getDailyChart(String token, String stockCode) {
-		String url = baseUrl + chartEndpoint; // API URL 설정
-		String contYn = "Y";
-		String nextKey = "";
-		List<ChartResponseDTO.ChartData> allData = new ArrayList<>();
-		ChartResponseDTO combined = null;
-
-		while ("Y".equals(contYn)) {
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			    throw new RuntimeException("Sleep 중 인터럽트 발생", e);
-			}
-			
-			// 요청 헤더 설정
-			HttpHeaders headers = new HttpHeaders();
-			headers.setContentType(MediaType.APPLICATION_JSON);
-			headers.setBearerAuth(token); // "Authorization: Bearer {token}"
-			headers.add("cont-yn", contYn); // 연속조회 여부
-			headers.add("next-key", nextKey); // 연속조회 키
-			headers.add("api-id", "ka10081"); // TR명
-
-			// 요청 바디(JSON 데이터)
-			Map<String, String> requestBody = new HashMap<>();
-			requestBody.put("stk_cd", stockCode);
-			requestBody.put("base_dt", LocalDate.now().format(DF));
-			requestBody.put("upd_stkpc_tp", "1");
-
-			// HTTP 요청 생성
-			HttpEntity<Map<String, String>> request = new HttpEntity<>(requestBody, headers);
-
-			ResponseEntity<ChartResponseDTO> response = restTemplate.exchange(url, HttpMethod.POST, request,
-					ChartResponseDTO.class);
-
-			ChartResponseDTO page = response.getBody();
-			HttpHeaders rh = response.getHeaders();
-
-			if (combined == null) {
-				combined = new ChartResponseDTO();
-				combined.setStockCode(page.getStockCode());
-			}
-
-			allData.addAll(page.getChartData());
-
-			contYn = rh.getFirst("cont-yn");
-			nextKey = rh.getFirst("next-key");
-			if (contYn == null)
-				contYn = "N";
-			if (nextKey == null)
-				nextKey = "";
+	public ChartResponseDTO fetchFullChart(String token, String stockCode, String contYn, String nextKey) {
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		    throw new RuntimeException("Sleep 중 인터럽트 발생", e);
 		}
+		
+		String url = baseUrl + chartEndpoint; // API URL 설정
 
-		combined.setChartData(allData);
-		return combined;
+		// 요청 헤더 설정
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		headers.setBearerAuth(token); // "Authorization: Bearer {token}"
+		headers.add("cont-yn", contYn); // 연속조회 여부
+		headers.add("next-key", nextKey); // 연속조회 키
+		headers.add("api-id", "ka10081"); // TR명
+		
+		// 요청 바디(JSON 데이터)
+		Map<String, String> requestBody = new HashMap<>();
+		requestBody.put("stk_cd", stockCode);
+		requestBody.put("base_dt", LocalDate.now().format(DF));
+		requestBody.put("upd_stkpc_tp", "1");
+		
+		// HTTP 요청 생성
+		HttpEntity<Map<String, String>> request = new HttpEntity<>(requestBody, headers);
 
+		ResponseEntity<ChartResponseDTO> response = restTemplate.exchange(url, HttpMethod.POST, request,
+				ChartResponseDTO.class);
+
+		ChartResponseDTO dto = response.getBody();
+		HttpHeaders rh = response.getHeaders();
+		String newContYn = rh.getFirst("cont-yn");
+	    String newNextKey = rh.getFirst("next-key");
+	    dto.setContYn(newContYn != null ? newContYn : "N");
+	    dto.setNextKey(newNextKey != null ? newNextKey : "");
+		return dto;
+
+	}
+	
+	public ChartResponseDTO getDailyChart(String token, String stockCode) {
+		Optional<StockChart> latestOpt = stkRepo.findTopByStockCodeOrderByDateDesc(stockCode);
+		LocalDate startDate = latestOpt.map(StockChart::getDate)
+                .orElse(null);
+		
+		if (startDate != null) {
+			stkRepo.deleteByStockCodeAndDate(stockCode, startDate);
+        }
+		
+		List<ChartResponseDTO.ChartData> fetched = new ArrayList<>();
+        String contYn = "Y", nextKey = "";
+        while ("Y".equals(contYn)) {
+        	ChartResponseDTO page = fetchFullChart(token, stockCode, contYn, nextKey);
+        	contYn   = page.getContYn();
+            nextKey = page.getNextKey();
+            for (var d : page.getChartData()) {
+                if (startDate == null || !d.getDate().isBefore(startDate)) {
+                    fetched.add(d);
+                }
+            }
+        }
+        
+        if (!fetched.isEmpty()) {
+            List<StockChart> toSave = fetched.stream()
+                .map(d -> {
+                    StockChart sc = new StockChart();
+                    sc.setStockCode(stockCode);
+                    sc.setDate(d.getDate());
+                    sc.setCurrentPrice(d.getCurrentPrice());
+                    sc.setTradeQuantity(d.getTradeQuantity());
+                    sc.setTradePriceAmount(d.getTradePriceAmount());
+                    sc.setOpenPrice(d.getOpenPrice());
+                    sc.setHighPrice(d.getHighPrice());
+                    sc.setLowPrice(d.getLowPrice());
+                    return sc;
+                })
+                .collect(Collectors.toList());
+            stkRepo.saveAll(toSave);
+        }
+        
+        List<StockChart> all = stkRepo.findByStockCodeOrderByDateAsc(stockCode);
+        ChartResponseDTO result = new ChartResponseDTO();
+        result.setStockCode(stockCode);
+        result.setChartData(all.stream().map(e -> {
+            ChartResponseDTO.ChartData cd = new ChartResponseDTO.ChartData();
+            cd.setDate(e.getDate());
+            cd.setCurrentPrice(e.getCurrentPrice());
+            cd.setTradeQuantity(e.getTradeQuantity());
+            cd.setTradePriceAmount(e.getTradePriceAmount());
+            cd.setOpenPrice(e.getOpenPrice());
+            cd.setHighPrice(e.getHighPrice());
+            cd.setLowPrice(e.getLowPrice());
+            return cd;
+        }).collect(Collectors.toList()));
+
+        return result;
 	}
 	
 	private AccountEvaluation mapDtoToEntity(String username, AccountEvaluationResponseDTO dto) {
