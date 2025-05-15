@@ -286,8 +286,8 @@ public class AssetService {
         dto.setEntr(act.getEntr());
         dto.setD2EntBalance(act.getD2EntBalance());
         dto.setTotalEstimate(act.getTotalEstimate());
+        dto.setTotalPurchase(act.getTotalPurchase());
         dto.setTotalLspftAmt(act.getTotalLspftAmt());
-        dto.setEntr(act.getEntr());
         dto.setProfitLoss(act.getProfitLoss());
         dto.setProfitLossRate(act.getProfitLossRate());
 

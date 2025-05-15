@@ -44,10 +44,10 @@ public class UserService {
 
 		double totalScore = calculateTotalScore(responses);
 
-		String ivestmentType = determineInvestmentType(totalScore);
+		String investmentType = determineInvestmentType(totalScore);
 
 		user.setInvestmentScore(totalScore);
-		user.setInvestmentType(ivestmentType);
+		user.setInvestmentType(investmentType);
 
 		userRepository.save(user);
 

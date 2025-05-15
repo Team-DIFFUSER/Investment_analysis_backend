@@ -2,18 +2,19 @@ package com.defuture.stockapp.jwt;
 
 import com.defuture.stockapp.users.UserAccount;
 import com.defuture.stockapp.users.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+@RequiredArgsConstructor
 @Service
 public class MyUserDetailsService implements UserDetailsService {
-
-	@Autowired
-	private UserRepository userRepository; // MongoDB에서 사용자 정보를 조회하는 Repository
+	private final UserRepository userRepository; // MongoDB에서 사용자 정보를 조회하는 Repository
 
 	@Override
 	public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {

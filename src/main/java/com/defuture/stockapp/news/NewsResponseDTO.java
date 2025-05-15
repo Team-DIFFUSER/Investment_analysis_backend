@@ -10,10 +10,10 @@ public class NewsResponseDTO {
 	
 	private int total;
 	
-	private List<newsData> items;
+	private List<NewsData> items;
 	
 	@Data
-    public static class newsData {
+    public static class NewsData {
 		private String title;
 		
 		private String link;

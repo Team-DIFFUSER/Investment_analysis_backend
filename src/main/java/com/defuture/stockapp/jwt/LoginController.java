@@ -1,6 +1,5 @@
 package com.defuture.stockapp.jwt;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -11,18 +10,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import lombok.RequiredArgsConstructor;
+
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/users")
 public class LoginController {
-
-	@Autowired
-	private AuthenticationManager authenticationManager;
-
-	@Autowired
-	private MyUserDetailsService userDetailsService;
-
-	@Autowired
-	private JwtUtil jwtUtil; // JWT 유틸리티
+	private final AuthenticationManager authenticationManager;
+	private final MyUserDetailsService userDetailsService;
+	private final JwtUtil jwtUtil; // JWT 유틸리티
 
 	// POST /login 엔드포인트 (로그인 요청 처리)
 	@PostMapping("/login")
