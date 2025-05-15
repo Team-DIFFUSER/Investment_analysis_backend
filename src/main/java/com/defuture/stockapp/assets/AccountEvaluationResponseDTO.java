@@ -7,6 +7,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Data
 public class AccountEvaluationResponseDTO {
+	@JsonProperty("entr") //예수금
+    private String entr;
+	
 	@JsonProperty("d2_entra") //D+2추정예수금
     private String d2EntBalance;
 	
@@ -15,6 +18,9 @@ public class AccountEvaluationResponseDTO {
 	
 	@JsonProperty("tot_pur_amt") //총매입금액
     private String totalPurchase;
+	
+	@JsonProperty("lspft_amt") //누적투자원금
+    private String totalLspftAmt;
 	
 	@JsonProperty("lspft") //누적투자손익
     private String profitLoss;

@@ -18,12 +18,16 @@ public class AccountEvaluation {
 	private String username;
 	
     private Instant lastUpdated; // 최종 갱신 시각
+    
+    private String entr; //예수금
 	
     private String d2EntBalance; //D+2추정예수금
 	
     private String totalEstimate; //유가잔고평가
 	
     private String totalPurchase; //총매입금액
+    
+    private String totalLspftAmt; //누적투자원금
 	
     private String profitLoss; //누적투자손익
 	

@@ -118,7 +118,7 @@ public class AssetService {
 
 		// HTTP 요청 생성
 		HttpEntity<Map<String, String>> request = new HttpEntity<>(requestBody, headers);
-
+		
 		// POST 요청 실행
 		ResponseEntity<AccountEvaluationResponseDTO> response = restTemplate.exchange(url, HttpMethod.POST, request, AccountEvaluationResponseDTO.class);
 
@@ -169,28 +169,32 @@ public class AssetService {
 	
 	public ChartResponseDTO getDailyChart(String token, String stockCode) {
 		Optional<StockChart> latestOpt = stkRepo.findTopByStockCodeOrderByDateDesc(stockCode);
-		LocalDate startDate = latestOpt.map(StockChart::getDate)
+		LocalDate latestDate = latestOpt.map(StockChart::getDate)
                 .orElse(null);
 		
-		if (startDate != null) {
-			stkRepo.deleteByStockCodeAndDate(stockCode, startDate);
+		if (latestDate != null) {
+			stkRepo.deleteByStockCodeAndDate(stockCode, latestDate);
         }
 		
-		List<ChartResponseDTO.ChartData> fetched = new ArrayList<>();
+		List<ChartResponseDTO.ChartData> newData = new ArrayList<>();
         String contYn = "Y", nextKey = "";
         while ("Y".equals(contYn)) {
         	ChartResponseDTO page = fetchFullChart(token, stockCode, contYn, nextKey);
         	contYn   = page.getContYn();
             nextKey = page.getNextKey();
             for (var d : page.getChartData()) {
-                if (startDate == null || !d.getDate().isBefore(startDate)) {
-                    fetched.add(d);
+                if (latestDate == null || !d.getDate().isBefore(latestDate)) {
+                	newData.add(d);
+                }
+                else {
+                    contYn = "N";
+                    break;
                 }
             }
         }
         
-        if (!fetched.isEmpty()) {
-            List<StockChart> toSave = fetched.stream()
+        if (!newData.isEmpty()) {
+            List<StockChart> toSave = newData.stream()
                 .map(d -> {
                     StockChart sc = new StockChart();
                     sc.setStockCode(stockCode);
@@ -250,9 +254,11 @@ public class AssetService {
 	private AccountEvaluation mapDtoToEntity(String username, AccountEvaluationResponseDTO dto) {
 		AccountEvaluation act = new AccountEvaluation();
 		act.setUsername(username);
+		act.setEntr(dto.getEntr());
 		act.setD2EntBalance(dto.getD2EntBalance());
 		act.setTotalEstimate(dto.getTotalEstimate());
 		act.setTotalPurchase(dto.getTotalPurchase());
+		act.setTotalLspftAmt(dto.getTotalLspftAmt());
 		act.setProfitLoss(dto.getProfitLoss());
 		act.setProfitLossRate(dto.getProfitLossRate());
 
@@ -277,9 +283,11 @@ public class AssetService {
 	
 	private AccountEvaluationResponseDTO mapEntityToDto(AccountEvaluation act) {
         AccountEvaluationResponseDTO dto = new AccountEvaluationResponseDTO();
+        dto.setEntr(act.getEntr());
         dto.setD2EntBalance(act.getD2EntBalance());
         dto.setTotalEstimate(act.getTotalEstimate());
-        dto.setTotalPurchase(act.getTotalPurchase());
+        dto.setTotalLspftAmt(act.getTotalLspftAmt());
+        dto.setEntr(act.getEntr());
         dto.setProfitLoss(act.getProfitLoss());
         dto.setProfitLossRate(act.getProfitLossRate());
 
