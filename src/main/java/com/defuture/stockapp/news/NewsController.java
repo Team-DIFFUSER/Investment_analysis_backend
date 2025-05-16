@@ -12,8 +12,8 @@ public class NewsController {
         this.newsService = newsService;
     }
 	
-	@GetMapping("")
-    public ResponseEntity<?> searchNews(@RequestParam String query) {
+	@GetMapping("/{query}")
+    public ResponseEntity<NewsResponseDTO> searchNews(@PathVariable("query") String query) {
         NewsResponseDTO result = newsService.searchNews(query);
         return ResponseEntity.ok(result);
     }

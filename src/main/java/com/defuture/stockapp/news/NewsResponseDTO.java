@@ -19,5 +19,7 @@ public class NewsResponseDTO {
 		private String link;
 		
 		private String description;
+		
+		private String pubDate;
 	}
 }
