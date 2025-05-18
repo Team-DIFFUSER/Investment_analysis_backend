@@ -1,5 +1,6 @@
 package com.defuture.stockapp.news;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -15,6 +16,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.util.Pair;
@@ -44,7 +48,6 @@ public class NewsService {
     private final CandidateArticleRepository candidateRepo;
     private final HoldingArticleRepository holdingArticleRepo;
     private final AccountEvaluationRepository actRepo;
-    //private final ThumbnailExtractor thumbnailExtractor;
     
 	@Value("${naver.appkey}")
 	private String appKey;
@@ -61,7 +64,6 @@ public class NewsService {
 	
 	public List<ArticleDTO> searchNews(String query) {
 		String url = "https://openapi.naver.com/v1/search/news.json?query=" + query + "&display=100";
-		//경제, 금리, 환율, 물가, gdp, 실업률, 통화정책, 
 		HttpHeaders headers = new HttpHeaders();
         headers.set("X-Naver-Client-Id", appKey);
         headers.set("X-Naver-Client-Secret", secretKey);
@@ -108,7 +110,7 @@ public class NewsService {
                 pool.addAll(searchNews(keyword));
             }
             for (String code : holdingCodes) {
-                pool.addAll(searchNews(code));
+                pool.addAll(searchNews(code.substring(1)));
             }
 
             // 4) 가중치 기반 랜덤 샘플 50개
@@ -116,15 +118,15 @@ public class NewsService {
 
             // 5) 썸네일 추출
             for (ArticleDTO article : sampled) {
-                String thumb = thumbnailExtractor
-                    .fetchOgImage(article.getUrl())
-                    .orElse("");
-                article.setThumbnailUrl(thumb);
+            	article.setThumbnailUrl(fetchThumbnailUrl(article.getUrl()));
             }
 
             // 6) DB 갱신 (기존 삭제 후 저장)
             opt.ifPresent(old -> candidateRepo.deleteById(old.getId()));
-            var doc = new CandidateArticle(username, Instant.now(), sampled);
+            CandidateArticle doc = new CandidateArticle();
+            doc.setUsername(username);
+            doc.setLastUpdated(Instant.now());
+            doc.setArticles(sampled);
             candidateRepo.save(doc);
 
             return sampled;
@@ -135,10 +137,28 @@ public class NewsService {
 	}
 
 	private List<ArticleDTO> weightedSample(Set<ArticleDTO> pool, List<String> holdingCodes) {
-		List<ArticleDTO> picked = pool.stream().sorted(Comparator.comparingDouble(article -> {
+		List<ArticleDTO> picked = pool.stream().sorted(Comparator.comparingDouble((ArticleDTO article) -> {
 			boolean isHolding = holdingCodes.contains(article.getStockCode());
 			return isHolding ? HOLDING_WEIGHT : BASE_WEIGHT;
 		}).reversed()).limit(50).toList();
 		return picked;
 	}
+	
+	private String fetchThumbnailUrl(String articleUrl) {
+        try {
+            Document doc = Jsoup.connect(articleUrl)
+                                .userAgent("Mozilla/5.0 (jsoup)")
+                                .timeout(5_000)
+                                .get();
+            Element meta = doc.selectFirst("meta[property=og:image]");
+            if (meta != null) {
+                String url = meta.attr("content").trim();
+                if (!url.isEmpty()) return url;
+            }
+        } catch (IOException e) {
+            // 로깅만, 빈 스트링 리턴
+            System.err.println("썸네일 추출 실패: " + e.getMessage());
+        }
+        return "";
+    }
 }

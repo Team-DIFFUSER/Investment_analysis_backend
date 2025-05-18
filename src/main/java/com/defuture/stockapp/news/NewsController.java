@@ -1,6 +1,9 @@
 package com.defuture.stockapp.news;
 
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -12,9 +15,9 @@ public class NewsController {
         this.newsService = newsService;
     }
 	
-	@GetMapping("/{query}")
-    public ResponseEntity<NewsResponseDTO> searchNews(@PathVariable("query") String query) {
-        NewsResponseDTO result = newsService.searchNews(query);
+	@GetMapping("")
+    public ResponseEntity<List<ArticleDTO>> searchNews(Authentication auth) {
+		List<ArticleDTO> result = newsService.getCandidateArticles(auth.getName());
         return ResponseEntity.ok(result);
     }
 }
