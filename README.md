@@ -226,18 +226,25 @@ Authorization: Bearer {JWT_TOKEN}
 
 #### 📤 응답 예시
 ```json
-{
-  "lastBuildDate": "Thu, 10 Apr 2025 14:47:40 +0900",       // api 요청 시간 (lastBuildDate)
-  "total": "3897511",      // 검색된 기사 갯수 (total)
-  "items": [                           // 기사 현황
+[
     {
-      "title": "반도체·부품사 1분기 호실적에도 웃지 못하는 이유는",          // 기사 제목 (title)
-      "link": "https://n.news.naver.com/mnews/article/119/0002943799?sid=101",        // 기사 링크 (link)
-      "description": "10일 업계에 따르면, <b>삼성전자</b>는 최근 1분기 잠정 영업익 6조6000억원을 기록했다. 이번 잠정 1분기 실적은 지난 7일 기준 영업익 컨센서스(증권사 3개월 추정치 평균)인 4조9613억원을 1조6000억원 이상 웃돌았다. 실적 발표를... ",        // 기사 요약 (description)
+        "stockCode": "066570",  //보유주식 기반 기사
+        "title": "올해의 발명왕에 최윤화 제엠제코 대표",
+        "description": "은탑산업훈장은 조휘재 LG전자(066570) 부사장과 성낙섭 현대자동차 전무가 수훈했다. 조 부사장은 LG전자의 지식재산(IP) 조직을 총괄하며 세계 최고 수준의 특허권을 보유하고 체계적인 IP 전략을 통해 혁신 제품 기술을...",
+        "url": "https://n.news.naver.com/mnews/article/011/0004487036?sid=105",
+        "pubDate": "2025-05-19T06:13:00Z",
+        "thumbnailUrl": "https://imgnews.pstatic.net/image/011/2025/05/19/0004487036_001_20250519195312943.jpg?type=w800"
+    },
+    {
+        "stockCode": null,      //보유주식과 무관한 경제 기사
+        "title": "中 4월 공장 가동률 선방…소비·수출 둔화는 여전",
+        "description": "4월 실업률은 5.1%로 3월보다 0.1%포인트 하락했지만 미국 수출 의존도가 높은 일부 공장에서 일시 해고가 발생했다는 증언도 나온다. 중국 경제는 1분기 5.4% 성장하며 예상을 웃돌았다. 중국 정부는 올해 경제성장률 목표인...",
+        "url": "http://www.g-enews.com/ko-kr/news/article/news_all/202505192001019489a1f309431_1/article.html",
+        "pubDate": "2025-05-19T11:04:00Z",
+        "thumbnailUrl": "https://nimage.g-enews.com/phpwas/restmb_allidxmake.php?idx=5&simg=20250519200137032279a1f3094311109215171.jpg"
     },
     ...
-  ]
-}
+]
 ```
 
 #### 🔒 인증 필요 여부
@@ -255,5 +262,5 @@ Authorization: Bearer {JWT_TOKEN}
 
 ---
 
-🛠 작성일: 2025.05.15  
+🛠 작성일: 2025.05.19
 👨‍💻 담당자: 백엔드 개발 - 박준오
