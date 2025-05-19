@@ -16,8 +16,14 @@ public class NewsController {
     }
 	
 	@GetMapping("")
-    public ResponseEntity<List<ArticleDTO>> searchNews(Authentication auth) {
+    public ResponseEntity<List<ArticleDTO>> getCandidateArticles(Authentication auth) {
 		List<ArticleDTO> result = newsService.getCandidateArticles(auth.getName());
         return ResponseEntity.ok(result);
+    }
+    
+    @PostMapping("")
+    public ResponseEntity<Void> fetchHoldingNews(Authentication auth) {
+		newsService.fetchHoldingNews(auth.getName());
+		return ResponseEntity.noContent().build();
     }
 }

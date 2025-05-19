@@ -1,10 +1,8 @@
 package com.defuture.stockapp.news;
 
 import java.time.Instant;
-import java.util.List;
 
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.PersistenceConstructor;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import lombok.Data;
@@ -14,7 +12,10 @@ import lombok.Data;
 public class HoldingArticle {
 	@Id
     private String id;
-
-    private Instant lastUpdated;      // 최종 갱신 시각
-    private List<ArticleDTO> articles; // 보유종목 관련 전체 기사(썸네일Url은 "")
+	
+	private String stockCode;
+	private String title;
+	private String description;
+    private String url;
+    private Instant pubDate;
 }
