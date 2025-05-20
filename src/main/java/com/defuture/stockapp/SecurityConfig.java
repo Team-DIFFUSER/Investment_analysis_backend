@@ -24,7 +24,7 @@ public class SecurityConfig {
 
 	// AuthenticationManager 설정: 사용자 정보와 암호 인코더를 등록
 	@Bean
-	public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration)
+	AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration)
 			throws Exception {
 		return authenticationConfiguration.getAuthenticationManager();
 	}

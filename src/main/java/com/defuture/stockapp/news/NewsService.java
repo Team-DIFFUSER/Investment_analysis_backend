@@ -10,7 +10,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +28,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.core.ParameterizedTypeReference;
 
 import com.defuture.stockapp.assets.AccountEvaluation.EvltData;
 import com.defuture.stockapp.assets.AccountEvaluationRepository;
@@ -41,7 +41,7 @@ public class NewsService {
 	private static final double HOLDING_WEIGHT = 8.0;
 	private static final double BASE_WEIGHT = 2.0;
 	private static final int SAMPLE_SIZE = 30;
-	private static final Period HISTORY_PERIOD = Period.ofMonths(1);
+	private static final Period HISTORY_PERIOD = Period.ofMonths(6);
 	private static final long MIN_INTERVAL_MS = 110;
 
 	private final CandidateArticleRepository candidateRepo;
@@ -64,8 +64,9 @@ public class NewsService {
 
 	public List<ArticleDTO> searchNews(String query, int display, int start) {
 		try {
-	        Thread.sleep(MIN_INTERVAL_MS);
-	    } catch (InterruptedException ignored) { }
+			Thread.sleep(MIN_INTERVAL_MS);
+		} catch (InterruptedException ignored) {
+		}
 		String url = "https://openapi.naver.com/v1/search/news.json?query=" + query + "&display=" + display + "&start="
 				+ start;
 		HttpHeaders headers = new HttpHeaders();
@@ -74,8 +75,10 @@ public class NewsService {
 
 		HttpEntity<Void> request = new HttpEntity<>(headers);
 
-		ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, request, Map.class);
-		Map<?, ?> body = response.getBody();
+		ResponseEntity<Map<String, Object>> response = restTemplate.exchange(url, HttpMethod.GET, request,
+				new ParameterizedTypeReference<Map<String, Object>>() {
+				});
+		Map<String, Object> body = response.getBody();
 		if (body == null)
 			return Collections.emptyList();
 
@@ -108,42 +111,45 @@ public class NewsService {
 
 	public void fetchHoldingNews(String username) {
 		Instant cutoff = LocalDate.now().minus(HISTORY_PERIOD).atStartOfDay(ZoneId.systemDefault()).toInstant();
-		// 1) 기존 데이터 조회
-		Optional<CandidateArticle> ca = candidateRepo.findByUsername(username);
-		if (ca.isEmpty() || ca.get().getLastUpdated().isBefore(Instant.now().minus(STALE_THRESHOLD))) {
-			// 2) 보유종목 코드 추출 (evlData 안의 stockCode)
-			List<String> holdingCodes = actRepo.findByUsername(username).get().getEvltData().stream()
-					.map(EvltData::getStockCode).toList();
+		holdingArticleRepo.deleteByPubDateBefore(username, cutoff);
 
-			for (String code : holdingCodes) {
-				int start = 1;
-				while (true) {
-					List<ArticleDTO> page = searchNews(code.substring(1), 100, start);
-					if (page.isEmpty())
-						break;
+		List<String> holdingCodes = actRepo.findByUsername(username).get().getEvltData().stream()
+				.map(EvltData::getStockCode).toList();
 
-					ArticleDTO oldest = page.get(page.size() - 1);
-					boolean needBreak = oldest.getPubDate().isBefore(cutoff);
+		for (String code : holdingCodes) {
+			String stock = code.substring(1);
+			Set<String> seen = new HashSet<>();
 
-					List<HoldingArticle> toSave = page.stream().filter(a -> a.getPubDate().isAfter(cutoff)).map(a -> {
-						HoldingArticle ha = new HoldingArticle();
-						ha.setStockCode(code.substring(1));
-						ha.setTitle(a.getTitle());
-						ha.setDescription(a.getDescription());
-						ha.setUrl(a.getUrl());
-						ha.setPubDate(a.getPubDate());
-						return ha;
-					}).toList();
+			Instant lastStored = holdingArticleRepo.findTopByStockCodeOrderByPubDateDesc(stock)
+					.map(HoldingArticle::getPubDate).orElse(Instant.EPOCH);
+			Instant cutoffDate = LocalDate.now().minus(HISTORY_PERIOD).atStartOfDay(ZoneId.systemDefault()).toInstant();
+			Instant threshold = lastStored.isAfter(cutoffDate) ? lastStored : cutoffDate;
 
-					if (!toSave.isEmpty()) {
-						holdingArticleRepo.saveAll(toSave);
-					}
+			int start = 1;
+			while (true) {
+				List<ArticleDTO> page = searchNews(stock, 100, start);
+				if (page.isEmpty())
+					break;
 
-					if (needBreak || page.size() < 100) {
-						break;
-					}
-					start+=100;
+				List<HoldingArticle> toSave = page.stream().filter(a -> a.getPubDate().isAfter(threshold))
+						.filter(a -> seen.add(a.getUrl())).map(a -> {
+							HoldingArticle ha = new HoldingArticle();
+							ha.setStockCode(stock);
+							ha.setTitle(a.getTitle());
+							ha.setDescription(a.getDescription());
+							ha.setUrl(a.getUrl());
+							ha.setPubDate(a.getPubDate());
+							return ha;
+						}).toList();
+
+				if (!toSave.isEmpty()) {
+					holdingArticleRepo.saveAll(toSave);
 				}
+
+				if (page.get(page.size() - 1).getPubDate().isBefore(threshold) || page.size() < 100) {
+					break;
+				}
+				start += 100;
 			}
 		}
 	}
@@ -159,10 +165,10 @@ public class NewsService {
 			// 3) 키워드 풀링 (중복 제거 Set)
 			Set<ArticleDTO> pool = new HashSet<>();
 			for (String keyword : BASE_KEYWORDS) {
-				pool.addAll(searchNews(keyword,10,1));
+				pool.addAll(searchNews(keyword, 10, 1));
 			}
 			for (String code : holdingCodes) {
-				pool.addAll(searchNews(code.substring(1),10,1));
+				pool.addAll(searchNews(code.substring(1), 10, 1));
 			}
 
 			// 4) 가중치 기반 랜덤 샘플 30개

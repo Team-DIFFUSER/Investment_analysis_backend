@@ -11,7 +11,7 @@ public class ArticleDTO {
 	private String stockCode;
 	private String title;
 	private String description;
-    private String url;
-    private Instant pubDate;
-    private String thumbnailUrl;
+	private String url;
+	private Instant pubDate;
+	private String thumbnailUrl;
 }

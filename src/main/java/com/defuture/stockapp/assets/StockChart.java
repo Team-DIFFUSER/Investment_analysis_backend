@@ -15,17 +15,17 @@ import lombok.Data;
 public class StockChart {
 	@Id
 	private String id;
-	
-	@Indexed
-    private String stockCode;
 
-    @Indexed
-    private LocalDate date; //dt
-    
-    private String currentPrice; //cur_prc
-    private String tradeQuantity; //trde_qty
-    private String tradePriceAmount; //trde_prica
-    private String openPrice; //open_pric
-    private String highPrice; //high_pric
-    private String lowPrice; //low_pric
+	@Indexed
+	private String stockCode;
+
+	@Indexed
+	private LocalDate date; // dt
+
+	private String currentPrice; // cur_prc
+	private String tradeQuantity; // trde_qty
+	private String tradePriceAmount; // trde_prica
+	private String openPrice; // open_pric
+	private String highPrice; // high_pric
+	private String lowPrice; // low_pric
 }

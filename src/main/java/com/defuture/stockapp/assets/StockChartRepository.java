@@ -8,6 +8,8 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 
 public interface StockChartRepository extends MongoRepository<StockChart, String> {
 	Optional<StockChart> findTopByStockCodeOrderByDateDesc(String stockCode);
-    List<StockChart> findByStockCodeOrderByDateAsc(String stockCode);
-    void deleteByStockCodeAndDate(String stockCode, LocalDate date);
+
+	List<StockChart> findByStockCodeOrderByDateAsc(String stockCode);
+
+	void deleteByStockCodeAndDate(String stockCode, LocalDate date);
 }

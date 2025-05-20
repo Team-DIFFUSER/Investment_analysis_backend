@@ -6,5 +6,6 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 
 public interface AccountEvaluationRepository extends MongoRepository<AccountEvaluation, String> {
 	Optional<AccountEvaluation> findByUsername(String username);
-    void deleteByUsername(String username);
+
+	void deleteByUsername(String username);
 }

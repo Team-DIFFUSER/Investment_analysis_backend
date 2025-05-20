@@ -12,35 +12,35 @@ import lombok.Data;
 public class ChartResponseDTO {
 	private String contYn;
 	private String nextKey;
-	
-	@JsonProperty("stk_cd") //종목코드
-    private String stockCode;
 
-    @JsonProperty("stk_dt_pole_chart_qry") //주식일봉차트조회
-    private List<ChartData> chartData = new ArrayList<>();
+	@JsonProperty("stk_cd") // 종목코드
+	private String stockCode;
 
-    @Data
-    public static class ChartData {
-        @JsonProperty("cur_prc") //현재가
-        private String currentPrice;
+	@JsonProperty("stk_dt_pole_chart_qry") // 주식일봉차트조회
+	private List<ChartData> chartData = new ArrayList<>();
 
-        @JsonProperty("trde_qty") //거래량
-        private String tradeQuantity;
+	@Data
+	public static class ChartData {
+		@JsonProperty("cur_prc") // 현재가
+		private String currentPrice;
 
-        @JsonProperty("trde_prica") //거래대금
-        private String tradePriceAmount;
+		@JsonProperty("trde_qty") // 거래량
+		private String tradeQuantity;
 
-        @JsonProperty("dt") //일자
-        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyyMMdd")
-        private LocalDate date;
+		@JsonProperty("trde_prica") // 거래대금
+		private String tradePriceAmount;
 
-        @JsonProperty("open_pric") //시가
-        private String openPrice;
+		@JsonProperty("dt") // 일자
+		@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyyMMdd")
+		private LocalDate date;
 
-        @JsonProperty("high_pric") //고가
-        private String highPrice;
+		@JsonProperty("open_pric") // 시가
+		private String openPrice;
 
-        @JsonProperty("low_pric") //저가
-        private String lowPrice;
-    }
+		@JsonProperty("high_pric") // 고가
+		private String highPrice;
+
+		@JsonProperty("low_pric") // 저가
+		private String lowPrice;
+	}
 }
