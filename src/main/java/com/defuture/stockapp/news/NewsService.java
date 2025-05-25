@@ -145,11 +145,11 @@ public class NewsService {
 				if (!toSave.isEmpty()) {
 					holdingArticleRepo.saveAll(toSave);
 				}
-
-				if (page.get(page.size() - 1).getPubDate().isBefore(threshold) || page.size() < 100) {
+				start += 100;
+				if (start > 1000 || page.get(page.size() - 1).getPubDate().isBefore(threshold) || page.size() < 100) {
 					break;
 				}
-				start += 100;
+
 			}
 		}
 	}
