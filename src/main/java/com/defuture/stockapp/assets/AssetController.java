@@ -13,11 +13,13 @@ import org.springframework.web.bind.annotation.*;
 public class AssetController {
 
 	private final AssetService assetService;
-	private final PredictedPriceDAO dao;
+	private final PredictedPriceDAO predictedPriceDao;
+	private final RecommendedStockDAO recommendedStockDAO;
 
-	public AssetController(AssetService assetService, JdbcTemplate jdbc, PredictedPriceDAO dao) {
+	public AssetController(AssetService assetService, JdbcTemplate jdbc, PredictedPriceDAO predictedPriceDao, RecommendedStockDAO recommendedStockDAO) {
 		this.assetService = assetService;
-		this.dao = dao;
+		this.predictedPriceDao = predictedPriceDao;
+		this.recommendedStockDAO = recommendedStockDAO;
 	}
 
 	@GetMapping("")
@@ -48,11 +50,16 @@ public class AssetController {
 	
 	@GetMapping("/{stkCd}/predicted-prices")
     public ResponseEntity<List<PredictedPriceDTO>> getAllPredictions(@PathVariable("stkCd") String stockCode) {
-		if (!dao.existsByStockCode(stockCode)) {
+		if (!predictedPriceDao.existsByStockCode(stockCode)) {
             return ResponseEntity.notFound().build();
         }
 		LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
-        List<PredictedPriceDTO> list = dao.findAfter(stockCode, today.plusDays(1));
+        List<PredictedPriceDTO> list = predictedPriceDao.findAfter(stockCode, today.plusDays(1));
         return ResponseEntity.ok(list);
     }
+	
+	@GetMapping("/recommendations")
+	public ResponseEntity<List<RecommendedStockDTO>> getRecommendedStocks() {
+	    return ResponseEntity.ok(recommendedStockDAO.findAllRecommended());
+	}
 }
