@@ -1,8 +1,8 @@
 package com.defuture.stockapp.assets;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
-import java.util.Map;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
@@ -13,11 +13,11 @@ import org.springframework.web.bind.annotation.*;
 public class AssetController {
 
 	private final AssetService assetService;
-	private final JdbcTemplate jdbc;
+	private final PredictedPriceDAO dao;
 
-	public AssetController(AssetService assetService, JdbcTemplate jdbc) {
+	public AssetController(AssetService assetService, JdbcTemplate jdbc, PredictedPriceDAO dao) {
 		this.assetService = assetService;
-		this.jdbc = jdbc;
+		this.dao = dao;
 	}
 
 	@GetMapping("")
@@ -46,10 +46,13 @@ public class AssetController {
 		return ResponseEntity.ok(response);
 	}
 	
-	@GetMapping("/predicted-prices")		//test
-    public ResponseEntity<List<Map<String, Object>>> getAllPredictions() {
-        String sql = "SELECT * FROM public.predicted_stock_prices";
-        List<Map<String,Object>> rows = jdbc.queryForList(sql);
-        return ResponseEntity.ok(rows);
+	@GetMapping("/{stkCd}/predicted-prices")
+    public ResponseEntity<List<PredictedPriceDTO>> getAllPredictions(@PathVariable("stkCd") String stockCode) {
+		if (!dao.existsByStockCode(stockCode)) {
+            return ResponseEntity.notFound().build();
+        }
+		LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        List<PredictedPriceDTO> list = dao.findAfter(stockCode, today.plusDays(1));
+        return ResponseEntity.ok(list);
     }
 }
