@@ -23,9 +23,16 @@ public class AssetController {
 	}
 
 	@GetMapping("")
-	public ResponseEntity<?> getAccountEvaluation(Authentication auth) { // @RequestHeader("Authorization") String token
+	public ResponseEntity<AccountEvaluationResponseDTO> getAccountEvaluation(Authentication auth) { // @RequestHeader("Authorization") String token
 		String accessToken = assetService.getAccessToken();
 		AccountEvaluationResponseDTO response = assetService.getAccountEvaluation(accessToken, auth.getName());
+		return ResponseEntity.ok(response);
+	}
+	
+	@GetMapping("/charts")
+	public ResponseEntity<UserChartResponseDTO> fetchUserChart(Authentication auth) { // @RequestHeader("Authorization") String token
+		String accessToken = assetService.getAccessToken();
+		UserChartResponseDTO response = assetService.fetchUserChart(accessToken, auth.getName());
 		return ResponseEntity.ok(response);
 	}
 

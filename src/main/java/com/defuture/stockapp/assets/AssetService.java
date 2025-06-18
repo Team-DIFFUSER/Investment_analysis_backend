@@ -31,6 +31,7 @@ public class AssetService {
 	private final AccountEvaluationRepository actRepo;
 	private final StockChartRepository stkRepo;
 	private final RestTemplate restTemplate;
+	private final UserChartRepository userRepo;
 	private String accessToken;
 
 	@Value("${securities.api.base-url}")
@@ -48,10 +49,12 @@ public class AssetService {
 	@Value("${securities.api.stkInfo-endpoint}")
 	private String stkInfoEndpoint;
 
-	public AssetService(RestTemplate restTemplate, AccountEvaluationRepository actRepo, StockChartRepository stkRepo) {
+	public AssetService(RestTemplate restTemplate, AccountEvaluationRepository actRepo, StockChartRepository stkRepo,
+			UserChartRepository userRepo) {
 		this.restTemplate = restTemplate;
 		this.actRepo = actRepo;
 		this.stkRepo = stkRepo;
+		this.userRepo = userRepo;
 	}
 
 	public String getAccessToken() {
@@ -248,6 +251,72 @@ public class AssetService {
 		FinancialStatementDTO json = response.getBody();
 
 		return json;
+	}
+
+	public UserChartResponseDTO fetchUserChart(String token, String username) {
+		// 시작일 결정: DB에 데이터 있으면 마지막+1, 없으면 2020-01-01
+		LocalDate startDate = userRepo.findTopByUsernameOrderByDateDesc(username).map(doc -> doc.getDate().plusDays(1))
+				.orElse(LocalDate.of(2020, 1, 1));
+
+		LocalDate endDate = LocalDate.now();
+		String startDt = startDate.format(DF);
+		String endDt = endDate.format(DF);
+
+		String contYn = "N";
+		String nextKey = "";
+
+		List<UserChartResponseDTO.DepositData> buffer = new ArrayList<>();
+
+		do {
+			String url = baseUrl + accountEndpoint;
+
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON);
+			headers.setBearerAuth(token); // "Authorization: Bearer {token}"
+			headers.add("cont-yn", contYn); // 연속조회 여부
+			headers.add("next-key", nextKey); // 연속조회 키
+			headers.add("api-id", "kt00002"); // TR명
+
+			Map<String, String> requestBody = new HashMap<>();
+			requestBody.put("start_dt", startDt);
+			requestBody.put("end_dt", endDt);
+
+			HttpEntity<Map<String, String>> request = new HttpEntity<>(requestBody, headers);
+
+			ResponseEntity<UserChartResponseDTO> resp = restTemplate.exchange(url, HttpMethod.POST, request,
+					UserChartResponseDTO.class);
+
+			UserChartResponseDTO page = resp.getBody();
+			HttpHeaders rh = resp.getHeaders();
+			contYn = rh.getFirst("cont-yn");
+			nextKey = rh.getFirst("next-key");
+
+			List<UserChartResponseDTO.DepositData> pageData = page.getData();
+		    if (pageData != null && !pageData.isEmpty()) {
+		        buffer.addAll(pageData);
+		    }
+		} while ("Y".equalsIgnoreCase(contYn));
+
+		LocalDate lastSaved = userRepo.findTopByOrderByDateDesc().map(UserChart::getDate).orElse(null);
+
+		List<UserChart> toSave = buffer.stream().filter(d -> lastSaved == null || d.getDate().isAfter(lastSaved))
+				.map(d -> {
+					UserChart doc = new UserChart();
+					doc.setUsername(username);
+					doc.setDate(d.getDate());
+					doc.setAmount(new String(d.getAmount()));
+					return doc;
+				}).collect(Collectors.toList());
+
+		if (!toSave.isEmpty()) {
+			userRepo.saveAll(toSave);
+		}
+		//List<UserChart> all = userRepo.findByUsernameAndDateGreaterThanEqualOrderByDateAsc(username, startDate);
+		List<UserChart> all = userRepo.findByUsernameOrderByDateAsc(username);
+		List<UserChartResponseDTO.DepositData> result = all.stream()
+				.map(u -> new UserChartResponseDTO.DepositData(u.getDate(), u.getAmount())).toList();
+
+		return new UserChartResponseDTO(result);
 	}
 
 	private AccountEvaluation mapDtoToEntity(String username, AccountEvaluationResponseDTO dto) {
