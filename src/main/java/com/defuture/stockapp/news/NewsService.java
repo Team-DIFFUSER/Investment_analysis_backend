@@ -33,6 +33,9 @@ import org.springframework.core.ParameterizedTypeReference;
 import com.defuture.stockapp.assets.AccountEvaluation.EvltData;
 import com.defuture.stockapp.assets.AccountEvaluationRepository;
 
+import net.dankito.readability4j.Article;
+import net.dankito.readability4j.Readability4J;
+
 @Service
 public class NewsService {
 	private final RestTemplate restTemplate;
@@ -174,10 +177,14 @@ public class NewsService {
 			// 4) 가중치 기반 랜덤 샘플 30개
 			List<ArticleDTO> sampled = weightedSample(pool, holdingCodes);
 
-			// 5) 썸네일 추출
+			// 5) 썸네일 및 본문내용 추출
 			for (ArticleDTO article : sampled) {
 				article.setThumbnailUrl(fetchThumbnailUrl(article.getUrl()));
+				article.setDescription(fetchFullText(article.getUrl()));
 			}
+
+			sampled = sampled.stream().filter(a -> a.getDescription() != null && !a.getDescription().isBlank()
+					&& a.getThumbnailUrl() != null && !a.getThumbnailUrl().isBlank()).toList();
 
 			// 6) DB 갱신 (기존 삭제 후 저장)
 			ca.ifPresent(old -> candidateRepo.deleteById(old.getId()));
@@ -231,8 +238,31 @@ public class NewsService {
 					return url;
 			}
 		} catch (IOException e) {
-			// 로깅만, 빈 스트링 리턴
 			System.err.println("썸네일 추출 실패: " + e.getMessage());
+		}
+		return "";
+	}
+
+	private String fetchFullText(String articleUrl) {
+		try {
+			Document doc = Jsoup.connect(articleUrl).userAgent("Mozilla/5.0 (compatible)").timeout(5_000).get();
+			String html = doc.html();
+
+			Readability4J readability = new Readability4J(articleUrl, html);
+			Article article = readability.parse();
+
+			String articleHtml = article.getContent();
+			if (articleHtml == null || articleHtml.isBlank()) {
+				Element body = doc.getElementById("newsct_article");
+				if (body != null && !body.text().isBlank()) {
+					return body.text().trim();
+				}
+				return "";
+			}
+			return Jsoup.parse(articleHtml).text().trim();
+
+		} catch (IOException e) {
+			System.err.println("본문 크롤링 실패" + e.getMessage());
 		}
 		return "";
 	}

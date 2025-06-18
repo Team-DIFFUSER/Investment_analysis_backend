@@ -86,7 +86,7 @@ public class AssetController {
 	}
 	
 	@GetMapping("/code/{name}")
-	public ResponseEntity<String> getCode(@PathVariable("name") String name) {
+	public ResponseEntity<String> getCode(@PathVariable String name) {
 		try {
             String code = assetService.getCodeByName(name);
             return ResponseEntity.ok(code);
