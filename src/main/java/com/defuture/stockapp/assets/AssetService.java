@@ -4,6 +4,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.springframework.core.ParameterizedTypeReference;
 
 import java.time.Duration;
@@ -11,11 +15,13 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.NoSuchElementException;
 
 @Service
 public class AssetService {
@@ -32,7 +38,21 @@ public class AssetService {
 	private final StockChartRepository stkRepo;
 	private final RestTemplate restTemplate;
 	private final UserChartRepository userRepo;
+	private final StockInfoRepository stockInfoRepo;
 	private String accessToken;
+	private final ObjectMapper objectMapper = new ObjectMapper();
+
+	private static final List<String> MARKET_TYPES = Arrays.asList("0", // 코스피
+			"10", // 코스닥
+			"3", // ELW
+			"8", // ETF
+			"30", // K-OTC
+			"50", // 코넥스
+			"5", // 신주인수권
+			"4", // 뮤추얼펀드
+			"6", // 리츠
+			"9" // 하이일드
+	);
 
 	@Value("${securities.api.base-url}")
 	private String baseUrl;
@@ -50,11 +70,12 @@ public class AssetService {
 	private String stkInfoEndpoint;
 
 	public AssetService(RestTemplate restTemplate, AccountEvaluationRepository actRepo, StockChartRepository stkRepo,
-			UserChartRepository userRepo) {
+			UserChartRepository userRepo, StockInfoRepository stockInfoRepo) {
 		this.restTemplate = restTemplate;
 		this.actRepo = actRepo;
 		this.stkRepo = stkRepo;
 		this.userRepo = userRepo;
+		this.stockInfoRepo = stockInfoRepo;
 	}
 
 	public String getAccessToken() {
@@ -128,7 +149,7 @@ public class AssetService {
 				AccountEvaluationResponseDTO.class);
 
 		AccountEvaluationResponseDTO json = response.getBody();
-
+		
 		return json;
 	}
 
@@ -292,9 +313,9 @@ public class AssetService {
 			nextKey = rh.getFirst("next-key");
 
 			List<UserChartResponseDTO.DepositData> pageData = page.getData();
-		    if (pageData != null && !pageData.isEmpty()) {
-		        buffer.addAll(pageData);
-		    }
+			if (pageData != null && !pageData.isEmpty()) {
+				buffer.addAll(pageData);
+			}
 		} while ("Y".equalsIgnoreCase(contYn));
 
 		LocalDate lastSaved = userRepo.findTopByOrderByDateDesc().map(UserChart::getDate).orElse(null);
@@ -311,13 +332,67 @@ public class AssetService {
 		if (!toSave.isEmpty()) {
 			userRepo.saveAll(toSave);
 		}
-		//List<UserChart> all = userRepo.findByUsernameAndDateGreaterThanEqualOrderByDateAsc(username, startDate);
+		// List<UserChart> all =
+		// userRepo.findByUsernameAndDateGreaterThanEqualOrderByDateAsc(username,
+		// startDate);
 		List<UserChart> all = userRepo.findByUsernameOrderByDateAsc(username);
 		List<UserChartResponseDTO.DepositData> result = all.stream()
 				.map(u -> new UserChartResponseDTO.DepositData(u.getDate(), u.getAmount())).toList();
 
 		return new UserChartResponseDTO(result);
 	}
+
+	public void fetchAndSaveAll(String token) throws Exception {
+		String url = baseUrl + stkInfoEndpoint;
+		List<StockInfo> buffer = new ArrayList<>();
+
+		for (String mrktTp : MARKET_TYPES) {
+			try {
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new RuntimeException("Sleep 중 인터럽트 발생", e);
+			}
+			String contYn = "N";
+			String nextKey = "";
+			do {
+				HttpHeaders headers = new HttpHeaders();
+				headers.setContentType(MediaType.APPLICATION_JSON);
+				headers.setBearerAuth(token);
+				headers.add("api-id", "ka10099");
+				headers.add("cont-yn", contYn);
+				headers.add("next-key", nextKey);
+
+				String jsonBody = String.format("{\"mrkt_tp\":\"%s\"}", mrktTp);
+				HttpEntity<String> req = new HttpEntity<>(jsonBody, headers);
+
+				ResponseEntity<String> resp = restTemplate.postForEntity(url, req, String.class);
+
+				if (!resp.getStatusCode().is2xxSuccessful()) {
+					throw new RuntimeException("API 호출 실패: " + resp.getStatusCode());
+				}
+
+				JsonNode root = objectMapper.readTree(resp.getBody());
+				JsonNode list = root.path("list");
+				contYn = root.path("cont-yn").asText();
+				nextKey = root.path("next-key").asText();
+				for (JsonNode node : list) {
+					buffer.add(StockInfo.builder().code(node.path("code").asText()).name(node.path("name").asText())
+							.build());
+				}
+			} while ("Y".equals(contYn));
+		}
+
+		stockInfoRepo.saveAll(buffer);
+	}
+	
+	public String getCodeByName(String name) {
+        return stockInfoRepo.findByName(name)
+            .map(StockInfo::getCode)
+            .orElseThrow(() ->
+                new NoSuchElementException("종목명 '" + name + "' 에 해당하는 코드가 없습니다.")
+            );
+    }
 
 	private AccountEvaluation mapDtoToEntity(String username, AccountEvaluationResponseDTO dto) {
 		AccountEvaluation act = new AccountEvaluation();

@@ -4,6 +4,7 @@ import lombok.Data;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSetter;
 
 @Data
 public class AccountEvaluationResponseDTO {
@@ -35,6 +36,15 @@ public class AccountEvaluationResponseDTO {
 	public static class EvltData {
 		@JsonProperty("stk_cd") // 종목코드
 		private String stockCode;
+		
+		@JsonSetter("stk_cd")
+	    public void setStockCode(String code) {
+	        if (code != null && code.length() > 1) {
+	            this.stockCode = code.substring(1);
+	        } else {
+	            this.stockCode = code;
+	        }
+	    }
 
 		@JsonProperty("stk_nm") // 종목명
 		private String name;

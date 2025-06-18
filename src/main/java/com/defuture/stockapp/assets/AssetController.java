@@ -3,6 +3,9 @@ package com.defuture.stockapp.assets;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.NoSuchElementException;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
@@ -68,5 +71,28 @@ public class AssetController {
 	@GetMapping("/recommendations")
 	public ResponseEntity<List<RecommendedStockDTO>> getRecommendedStocks() {
 	    return ResponseEntity.ok(recommendedStockDAO.findAllRecommended());
+	}
+	
+	@PostMapping("/stock-info")
+	public ResponseEntity<String> syncAll(Authentication auth) { // @RequestHeader("Authorization") String token
+		String accessToken = assetService.getAccessToken();
+		try {
+			assetService.fetchAndSaveAll(accessToken);
+            return ResponseEntity.ok("종목정보 동기화 완료");
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                .body("동기화 중 오류 발생: " + e.getMessage());
+        }
+	}
+	
+	@GetMapping("/code/{name}")
+	public ResponseEntity<String> getCode(@PathVariable("name") String name) {
+		try {
+            String code = assetService.getCodeByName(name);
+            return ResponseEntity.ok(code);
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                 .body(e.getMessage());
+        }
 	}
 }
