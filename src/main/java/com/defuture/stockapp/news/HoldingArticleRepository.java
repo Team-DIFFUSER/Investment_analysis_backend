@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface HoldingArticleRepository extends MongoRepository<HoldingArticle, String> {
-	void deleteByPubDateBefore(String username, Instant date);
+	void deleteByPubDateBefore(Instant date);
 
 	Optional<HoldingArticle> findTopByStockCodeOrderByPubDateDesc(String stockCode);
 }

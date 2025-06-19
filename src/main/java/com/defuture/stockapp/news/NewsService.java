@@ -114,7 +114,7 @@ public class NewsService {
 
 	public void fetchHoldingNews(String username) {
 		Instant cutoff = LocalDate.now().minus(HISTORY_PERIOD).atStartOfDay(ZoneId.systemDefault()).toInstant();
-		holdingArticleRepo.deleteByPubDateBefore(username, cutoff);
+		holdingArticleRepo.deleteByPubDateBefore(cutoff);
 
 		List<String> holdingCodes = actRepo.findByUsername(username).get().getEvltData().stream()
 				.map(EvltData::getStockCode).toList();

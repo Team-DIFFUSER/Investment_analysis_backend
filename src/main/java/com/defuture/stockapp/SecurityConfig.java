@@ -33,8 +33,8 @@ public class SecurityConfig {
 	SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		http.csrf(csrf -> csrf.disable())
 				.authorizeHttpRequests(authorize -> authorize
-						.requestMatchers("/api/users/login", "/api/users/register", "/api/users/exists/{userId}",
-								"/api/users/{userId}")
+						.requestMatchers("/api/users/login", "/api/users/register", "/api/users/exists/{username}",
+								"/api/users/{username}")
 						.permitAll().anyRequest().authenticated())
 				// 세션 관리를 stateless로 설정
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
