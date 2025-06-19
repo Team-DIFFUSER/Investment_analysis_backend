@@ -74,10 +74,10 @@ public class AssetController {
 	}
 	
 	@PostMapping("/stock-info")
-	public ResponseEntity<String> syncAll(Authentication auth) { // @RequestHeader("Authorization") String token
+	public ResponseEntity<String> syncAllStockInfo(Authentication auth) { // @RequestHeader("Authorization") String token
 		String accessToken = assetService.getAccessToken();
 		try {
-			assetService.fetchAndSaveAll(accessToken);
+			assetService.syncAllStockInfo(accessToken);
             return ResponseEntity.ok("종목정보 동기화 완료");
         } catch (Exception e) {
             return ResponseEntity.status(500)

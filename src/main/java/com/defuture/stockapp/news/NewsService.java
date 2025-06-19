@@ -47,9 +47,9 @@ public class NewsService {
 	private static final Period HISTORY_PERIOD = Period.ofMonths(6);
 	private static final long MIN_INTERVAL_MS = 110;
 
-	private final CandidateArticleRepository candidateRepo;
-	private final HoldingArticleRepository holdingArticleRepo;
-	private final AccountEvaluationRepository actRepo;
+	private final CandidateArticleRepository candidateArticleRepository;
+	private final HoldingArticleRepository holdingArticleRepository;
+	private final AccountEvaluationRepository accountEvaluationRepository;
 
 	@Value("${naver.appkey}")
 	private String appKey;
@@ -57,12 +57,12 @@ public class NewsService {
 	@Value("${naver.secretkey}")
 	private String secretKey;
 
-	public NewsService(RestTemplate restTemplate, CandidateArticleRepository candidateRepo,
-			HoldingArticleRepository holdingArticleRepo, AccountEvaluationRepository actRepo) {
+	public NewsService(RestTemplate restTemplate, CandidateArticleRepository candidateArticleRepository,
+			HoldingArticleRepository holdingArticleRepository, AccountEvaluationRepository accountEvaluationRepository) {
 		this.restTemplate = restTemplate;
-		this.candidateRepo = candidateRepo;
-		this.holdingArticleRepo = holdingArticleRepo;
-		this.actRepo = actRepo;
+		this.candidateArticleRepository = candidateArticleRepository;
+		this.holdingArticleRepository = holdingArticleRepository;
+		this.accountEvaluationRepository = accountEvaluationRepository;
 	}
 
 	public List<ArticleDTO> searchNews(String query, int display, int start) {
@@ -114,16 +114,16 @@ public class NewsService {
 
 	public void fetchHoldingNews(String username) {
 		Instant cutoff = LocalDate.now().minus(HISTORY_PERIOD).atStartOfDay(ZoneId.systemDefault()).toInstant();
-		holdingArticleRepo.deleteByPubDateBefore(cutoff);
+		holdingArticleRepository.deleteByPubDateBefore(cutoff);
 
-		List<String> holdingCodes = actRepo.findByUsername(username).get().getEvltData().stream()
+		List<String> holdingCodes = accountEvaluationRepository.findByUsername(username).get().getEvltData().stream()
 				.map(EvltData::getStockCode).toList();
 
 		for (String code : holdingCodes) {
 			String stock = code.substring(1);
 			Set<String> seen = new HashSet<>();
 
-			Instant lastStored = holdingArticleRepo.findTopByStockCodeOrderByPubDateDesc(stock)
+			Instant lastStored = holdingArticleRepository.findTopByStockCodeOrderByPubDateDesc(stock)
 					.map(HoldingArticle::getPubDate).orElse(Instant.EPOCH);
 			Instant cutoffDate = LocalDate.now().minus(HISTORY_PERIOD).atStartOfDay(ZoneId.systemDefault()).toInstant();
 			Instant threshold = lastStored.isAfter(cutoffDate) ? lastStored : cutoffDate;
@@ -146,7 +146,7 @@ public class NewsService {
 						}).toList();
 
 				if (!toSave.isEmpty()) {
-					holdingArticleRepo.saveAll(toSave);
+					holdingArticleRepository.saveAll(toSave);
 				}
 				start += 100;
 				if (start > 1000 || page.get(page.size() - 1).getPubDate().isBefore(threshold) || page.size() < 100) {
@@ -159,10 +159,10 @@ public class NewsService {
 
 	public List<ArticleDTO> getCandidateArticles(String username) {
 		// 1) 기존 데이터 조회
-		Optional<CandidateArticle> ca = candidateRepo.findByUsername(username);
+		Optional<CandidateArticle> ca = candidateArticleRepository.findByUsername(username);
 		if (ca.isEmpty() || ca.get().getLastUpdated().isBefore(Instant.now().minus(STALE_THRESHOLD))) {
 			// 2) 보유종목 코드 추출 (evlData 안의 stockCode)
-			List<String> holdingCodes = actRepo.findByUsername(username).get().getEvltData().stream()
+			List<String> holdingCodes = accountEvaluationRepository.findByUsername(username).get().getEvltData().stream()
 					.map(EvltData::getStockCode).toList();
 
 			// 3) 키워드 풀링 (중복 제거 Set)
@@ -187,12 +187,12 @@ public class NewsService {
 					&& a.getThumbnailUrl() != null && !a.getThumbnailUrl().isBlank()).toList();
 
 			// 6) DB 갱신 (기존 삭제 후 저장)
-			ca.ifPresent(old -> candidateRepo.deleteById(old.getId()));
+			ca.ifPresent(old -> candidateArticleRepository.deleteById(old.getId()));
 			CandidateArticle doc = new CandidateArticle();
 			doc.setUsername(username);
 			doc.setLastUpdated(Instant.now());
 			doc.setArticles(sampled);
-			candidateRepo.save(doc);
+			candidateArticleRepository.save(doc);
 
 			return sampled;
 		}

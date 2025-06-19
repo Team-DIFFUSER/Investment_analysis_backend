@@ -34,11 +34,11 @@ public class AssetService {
 	@Value("${kiwoom.secretkey}")
 	private String secretKey;
 
-	private final AccountEvaluationRepository actRepo;
-	private final StockChartRepository stkRepo;
+	private final AccountEvaluationRepository accountEvaluationRepository;
+	private final StockChartRepository stockChartRepository;
 	private final RestTemplate restTemplate;
-	private final UserChartRepository userRepo;
-	private final StockInfoRepository stockInfoRepo;
+	private final UserChartRepository userChartRepository;
+	private final StockInfoRepository stockInfoRepository;
 	private String accessToken;
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -69,13 +69,13 @@ public class AssetService {
 	@Value("${securities.api.stkInfo-endpoint}")
 	private String stkInfoEndpoint;
 
-	public AssetService(RestTemplate restTemplate, AccountEvaluationRepository actRepo, StockChartRepository stkRepo,
-			UserChartRepository userRepo, StockInfoRepository stockInfoRepo) {
+	public AssetService(RestTemplate restTemplate, AccountEvaluationRepository accountEvaluationRepository, StockChartRepository stockChartRepository,
+			UserChartRepository userChartRepository, StockInfoRepository stockInfoRepository) {
 		this.restTemplate = restTemplate;
-		this.actRepo = actRepo;
-		this.stkRepo = stkRepo;
-		this.userRepo = userRepo;
-		this.stockInfoRepo = stockInfoRepo;
+		this.accountEvaluationRepository = accountEvaluationRepository;
+		this.stockChartRepository = stockChartRepository;
+		this.userChartRepository = userChartRepository;
+		this.stockInfoRepository = stockInfoRepository;
 	}
 
 	public String getAccessToken() {
@@ -103,22 +103,22 @@ public class AssetService {
 	}
 
 	public AccountEvaluationResponseDTO getAccountEvaluation(String token, String username) {
-		Optional<AccountEvaluation> act = actRepo.findByUsername(username);
+		Optional<AccountEvaluation> optionalEvaluation = accountEvaluationRepository.findByUsername(username);
 
-		if (act.isEmpty() || isStale(act.get().getLastUpdated())) {
-			act.ifPresent(e -> actRepo.deleteByUsername(e.getUsername()));
+		if (optionalEvaluation.isEmpty() || isStale(optionalEvaluation.get().getLastUpdated())) {
+			optionalEvaluation.ifPresent(e -> accountEvaluationRepository.deleteByUsername(e.getUsername()));
 
 			AccountEvaluationResponseDTO freshDto = fetchFreshAccountEvaluation(token);
 
 			AccountEvaluation entity = mapDtoToEntity(username, freshDto);
 			entity.setLastUpdated(Instant.now());
 
-			actRepo.save(entity);
+			accountEvaluationRepository.save(entity);
 
 			return freshDto;
 		}
 
-		return mapEntityToDto(act.get());
+		return mapEntityToDto(optionalEvaluation.get());
 	}
 
 	private boolean isStale(Instant lastUpdated) {
@@ -194,11 +194,11 @@ public class AssetService {
 	}
 
 	public ChartResponseDTO getDailyChart(String token, String stockCode) {
-		Optional<StockChart> latestOpt = stkRepo.findTopByStockCodeOrderByDateDesc(stockCode);
+		Optional<StockChart> latestOpt = stockChartRepository.findTopByStockCodeOrderByDateDesc(stockCode);
 		LocalDate latestDate = latestOpt.map(StockChart::getDate).orElse(null);
 
 		if (latestDate != null) {
-			stkRepo.deleteByStockCodeAndDate(stockCode, latestDate);
+			stockChartRepository.deleteByStockCodeAndDate(stockCode, latestDate);
 		}
 
 		List<ChartResponseDTO.ChartData> newData = new ArrayList<>();
@@ -230,10 +230,10 @@ public class AssetService {
 				sc.setLowPrice(d.getLowPrice());
 				return sc;
 			}).collect(Collectors.toList());
-			stkRepo.saveAll(toSave);
+			stockChartRepository.saveAll(toSave);
 		}
 
-		List<StockChart> all = stkRepo.findByStockCodeOrderByDateAsc(stockCode);
+		List<StockChart> all = stockChartRepository.findByStockCodeOrderByDateAsc(stockCode);
 		ChartResponseDTO result = new ChartResponseDTO();
 		result.setStockCode(stockCode);
 		result.setChartData(all.stream().map(e -> {
@@ -276,7 +276,7 @@ public class AssetService {
 
 	public UserChartResponseDTO fetchUserChart(String token, String username) {
 		// 시작일 결정: DB에 데이터 있으면 마지막+1, 없으면 2020-01-01
-		LocalDate startDate = userRepo.findTopByUsernameOrderByDateDesc(username).map(doc -> doc.getDate().plusDays(1))
+		LocalDate startDate = userChartRepository.findTopByUsernameOrderByDateDesc(username).map(doc -> doc.getDate().plusDays(1))
 				.orElse(LocalDate.of(2020, 1, 1));
 
 		LocalDate endDate = LocalDate.now();
@@ -318,7 +318,7 @@ public class AssetService {
 			}
 		} while ("Y".equalsIgnoreCase(contYn));
 
-		LocalDate lastSaved = userRepo.findTopByOrderByDateDesc().map(UserChart::getDate).orElse(null);
+		LocalDate lastSaved = userChartRepository.findTopByOrderByDateDesc().map(UserChart::getDate).orElse(null);
 
 		List<UserChart> toSave = buffer.stream().filter(d -> lastSaved == null || d.getDate().isAfter(lastSaved))
 				.map(d -> {
@@ -330,19 +330,19 @@ public class AssetService {
 				}).collect(Collectors.toList());
 
 		if (!toSave.isEmpty()) {
-			userRepo.saveAll(toSave);
+			userChartRepository.saveAll(toSave);
 		}
 		// List<UserChart> all =
-		// userRepo.findByUsernameAndDateGreaterThanEqualOrderByDateAsc(username,
+		// userChartRepository.findByUsernameAndDateGreaterThanEqualOrderByDateAsc(username,
 		// startDate);
-		List<UserChart> all = userRepo.findByUsernameOrderByDateAsc(username);
+		List<UserChart> all = userChartRepository.findByUsernameOrderByDateAsc(username);
 		List<UserChartResponseDTO.DepositData> result = all.stream()
 				.map(u -> new UserChartResponseDTO.DepositData(u.getDate(), u.getAmount())).toList();
 
 		return new UserChartResponseDTO(result);
 	}
 
-	public void fetchAndSaveAll(String token) throws Exception {
+	public void syncAllStockInfo(String token) throws Exception {
 		String url = baseUrl + stkInfoEndpoint;
 		List<StockInfo> buffer = new ArrayList<>();
 
@@ -383,11 +383,11 @@ public class AssetService {
 			} while ("Y".equals(contYn));
 		}
 
-		stockInfoRepo.saveAll(buffer);
+		stockInfoRepository.saveAll(buffer);
 	}
 	
 	public String getCodeByName(String name) {
-        return stockInfoRepo.findByName(name)
+        return stockInfoRepository.findByName(name)
             .map(StockInfo::getCode)
             .orElseThrow(() ->
                 new NoSuchElementException("종목명 '" + name + "' 에 해당하는 코드가 없습니다.")
