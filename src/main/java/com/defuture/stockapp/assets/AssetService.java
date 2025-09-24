@@ -104,7 +104,6 @@ public class AssetService {
 
 	public AccountEvaluationResponseDTO getAccountEvaluation(String token, String username) {
 		Optional<AccountEvaluation> optionalEvaluation = accountEvaluationRepository.findByUsername(username);
-
 		if (optionalEvaluation.isEmpty() || isStale(optionalEvaluation.get().getLastUpdated())) {
 			optionalEvaluation.ifPresent(e -> accountEvaluationRepository.deleteByUsername(e.getUsername()));
 
@@ -127,7 +126,7 @@ public class AssetService {
 
 	public AccountEvaluationResponseDTO fetchFreshAccountEvaluation(String token) {
 		String url = baseUrl + accountEndpoint; // API URL 설정
-
+		
 		// 요청 헤더 설정
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
@@ -149,7 +148,6 @@ public class AssetService {
 				AccountEvaluationResponseDTO.class);
 
 		AccountEvaluationResponseDTO json = response.getBody();
-		
 		return json;
 	}
 
@@ -278,7 +276,7 @@ public class AssetService {
 		// 시작일 결정: DB에 데이터 있으면 마지막+1, 없으면 2020-01-01
 		LocalDate startDate = userChartRepository.findTopByUsernameOrderByDateDesc(username).map(doc -> doc.getDate().plusDays(1))
 				.orElse(LocalDate.of(2020, 1, 1));
-
+		
 		LocalDate endDate = LocalDate.now();
 		String startDt = startDate.format(DF);
 		String endDt = endDate.format(DF);
@@ -318,14 +316,14 @@ public class AssetService {
 			}
 		} while ("Y".equalsIgnoreCase(contYn));
 
-		LocalDate lastSaved = userChartRepository.findTopByOrderByDateDesc().map(UserChart::getDate).orElse(null);
+		LocalDate lastSaved = userChartRepository.findTopByUsernameOrderByDateDesc(username).map(UserChart::getDate).orElse(null);
 
 		List<UserChart> toSave = buffer.stream().filter(d -> lastSaved == null || d.getDate().isAfter(lastSaved))
 				.map(d -> {
 					UserChart doc = new UserChart();
 					doc.setUsername(username);
 					doc.setDate(d.getDate());
-					doc.setAmount(new String(d.getAmount()));
+					doc.setAmount(d.getAmount());
 					return doc;
 				}).collect(Collectors.toList());
 
@@ -338,7 +336,6 @@ public class AssetService {
 		List<UserChart> all = userChartRepository.findByUsernameOrderByDateAsc(username);
 		List<UserChartResponseDTO.DepositData> result = all.stream()
 				.map(u -> new UserChartResponseDTO.DepositData(u.getDate(), u.getAmount())).toList();
-
 		return new UserChartResponseDTO(result);
 	}
 

@@ -120,7 +120,7 @@ public class NewsService {
 				.map(EvltData::getStockCode).toList();
 
 		for (String code : holdingCodes) {
-			String stock = code.substring(1);
+			String stock = code;
 			Set<String> seen = new HashSet<>();
 
 			Instant lastStored = holdingArticleRepository.findTopByStockCodeOrderByPubDateDesc(stock)
@@ -158,6 +158,7 @@ public class NewsService {
 	}
 
 	public List<ArticleDTO> getCandidateArticles(String username) {
+		Instant cutoff = LocalDate.now().minus(Period.ofDays(7)).atStartOfDay(ZoneId.systemDefault()).toInstant();
 		// 1) 기존 데이터 조회
 		Optional<CandidateArticle> ca = candidateArticleRepository.findByUsername(username);
 		if (ca.isEmpty() || ca.get().getLastUpdated().isBefore(Instant.now().minus(STALE_THRESHOLD))) {
@@ -171,8 +172,10 @@ public class NewsService {
 				pool.addAll(searchNews(keyword, 10, 1));
 			}
 			for (String code : holdingCodes) {
-				pool.addAll(searchNews(code.substring(1), 10, 1));
+				pool.addAll(searchNews(code, 10, 1));
 			}
+			
+			pool.removeIf(a -> a.getPubDate().isBefore(cutoff));
 
 			// 4) 가중치 기반 랜덤 샘플 30개
 			List<ArticleDTO> sampled = weightedSample(pool, holdingCodes);
